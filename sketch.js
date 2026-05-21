@@ -17,6 +17,12 @@ const GRID_TO_VIDEO = [
   5, 6, 7,
 ];
 
+const VIDEO_ZOOM = [
+  1, 1.24, 1.24,
+  1, 1, 1,
+  1, 1.24,
+];
+
 let inputVideo;
 let hands;
 let camera;
@@ -28,8 +34,12 @@ let previousPalmX = null;
 let anchorPalmX = null;
 let allActiveAt = null;
 let lastDelta = 0;
+let lastVelocity = 0;
+let cameraStatus = "camera: starting";
+let handStatus = "hand: waiting";
 
-const swingThreshold = 0.12;
+const swingThreshold = 0.08;
+const velocityThreshold = 0.035;
 const triggerCooldown = 650;
 const allActiveHoldTime = 10000;
 
@@ -98,7 +108,13 @@ function setupHands() {
 
   camera
     .start()
-    .catch(() => {});
+    .then(() => {
+      cameraStatus = "camera: on";
+    })
+    .catch((error) => {
+      const errorName = error && error.name ? error.name : "failed";
+      cameraStatus = `camera: ${errorName}`;
+    });
 }
 
 function handleHandResults(results) {
@@ -106,19 +122,24 @@ function handleHandResults(results) {
   if (!hand) {
     previousPalmX = null;
     anchorPalmX = null;
+    handStatus = "hand: none";
     return;
   }
 
   const palmX = averageX([hand[0], hand[5], hand[9], hand[13], hand[17]]);
+  handStatus = `hand: detected ${nf(palmX, 1, 2)}`;
   if (anchorPalmX === null) {
     anchorPalmX = palmX;
   }
 
   if (previousPalmX !== null) {
     lastDelta = palmX - anchorPalmX;
+    lastVelocity = palmX - previousPalmX;
     const ready = millis() - lastTriggerAt > triggerCooldown;
+    const movedFarEnough = abs(lastDelta) > swingThreshold;
+    const movedFastEnough = abs(lastVelocity) > velocityThreshold;
 
-    if (abs(lastDelta) > swingThreshold && ready) {
+    if ((movedFarEnough || movedFastEnough) && ready) {
       activateNextVideo();
       lastTriggerAt = millis();
       anchorPalmX = palmX;
@@ -189,6 +210,7 @@ function draw() {
   background(0);
   updateAutoReset();
   drawGrid();
+  drawStatus();
 }
 
 function updateAutoReset() {
@@ -224,20 +246,30 @@ function drawVideoCell(x, y, w, h, videoIndex) {
   const isActive = videoIndex < activeCount;
 
   if (isActive) {
-    imageContain(clips[videoIndex], x, y, w, h);
+    imageContain(clips[videoIndex], x, y, w, h, VIDEO_ZOOM[videoIndex]);
   }
 }
 
 function drawMiddleCell(x, y, w, h) {
   if (middleClip) {
-    imageContain(middleClip, x, y, w, h);
+    imageContain(middleClip, x, y, w, h, 1);
   }
 }
 
-function imageContain(media, x, y, w, h) {
+function drawStatus() {
+  noStroke();
+  fill(255);
+  textAlign(LEFT, TOP);
+  textSize(max(11, width * 0.013));
+  const count = `count: ${activeCount}/8`;
+  const motion = `dx: ${nf(lastDelta, 1, 2)} speed: ${nf(lastVelocity, 1, 2)}`;
+  text(`${cameraStatus} | ${handStatus} | ${count} | ${motion}`, 10, 10);
+}
+
+function imageContain(media, x, y, w, h, zoom) {
   const mediaW = media.elt.videoWidth || media.width || w;
   const mediaH = media.elt.videoHeight || media.height || h;
-  const scale = min(w / mediaW, h / mediaH);
+  const scale = min(w / mediaW, h / mediaH) * zoom;
   const drawW = mediaW * scale;
   const drawH = mediaH * scale;
   const drawX = x + (w - drawW) / 2;
