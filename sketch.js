@@ -20,7 +20,7 @@ const GRID_TO_VIDEO = [
 const VIDEO_ZOOM = [
   1, 1, 1,
   1, 1, 1,
-  1, 1,
+  1, 2,
 ];
 
 let inputVideo;
@@ -35,12 +35,11 @@ let anchorPalmX = null;
 let allActiveAt = null;
 let lastDelta = 0;
 let lastVelocity = 0;
-let cameraStatus = "camera: starting";
-let handStatus = "hand: waiting";
+let middleBounds = null;
 
 const swingThreshold = 0.08;
 const velocityThreshold = 0.035;
-const triggerCooldown = 650;
+const triggerCooldown = 3000;
 const allActiveHoldTime = 10000;
 
 function setup() {
@@ -108,13 +107,7 @@ function setupHands() {
 
   camera
     .start()
-    .then(() => {
-      cameraStatus = "camera: on";
-    })
-    .catch((error) => {
-      const errorName = error && error.name ? error.name : "failed";
-      cameraStatus = `camera: ${errorName}`;
-    });
+    .catch(() => {});
 }
 
 function handleHandResults(results) {
@@ -122,12 +115,10 @@ function handleHandResults(results) {
   if (!hand) {
     previousPalmX = null;
     anchorPalmX = null;
-    handStatus = "hand: none";
     return;
   }
 
   const palmX = averageX([hand[0], hand[5], hand[9], hand[13], hand[17]]);
-  handStatus = `hand: detected ${nf(palmX, 1, 2)}`;
   if (anchorPalmX === null) {
     anchorPalmX = palmX;
   }
@@ -210,7 +201,6 @@ function draw() {
   background(0);
   updateAutoReset();
   drawGrid();
-  drawStatus();
 }
 
 function updateAutoReset() {
@@ -235,6 +225,7 @@ function drawGrid() {
     const videoIndex = GRID_TO_VIDEO[gridIndex];
 
     if (videoIndex === -1) {
+      middleBounds = { x, y, w: cellW, h: cellH };
       drawMiddleCell(x, y, cellW, cellH);
     } else {
       drawVideoCell(x, y, cellW, cellH, videoIndex);
@@ -254,16 +245,6 @@ function drawMiddleCell(x, y, w, h) {
   if (middleClip) {
     imageContain(middleClip, x, y, w, h, 1);
   }
-}
-
-function drawStatus() {
-  noStroke();
-  fill(255);
-  textAlign(LEFT, TOP);
-  textSize(max(11, width * 0.013));
-  const count = `count: ${activeCount}/8`;
-  const motion = `dx: ${nf(lastDelta, 1, 2)} speed: ${nf(lastVelocity, 1, 2)}`;
-  text(`${cameraStatus} | ${handStatus} | ${count} | ${motion}`, 10, 10);
 }
 
 function imageContain(media, x, y, w, h, zoom) {
@@ -292,7 +273,19 @@ function keyPressed() {
 }
 
 function mousePressed() {
-  activateNextVideo();
+  if (isInsideMiddle(mouseX, mouseY)) {
+    activateNextVideo();
+  }
+}
+
+function isInsideMiddle(x, y) {
+  return (
+    middleBounds &&
+    x >= middleBounds.x &&
+    x <= middleBounds.x + middleBounds.w &&
+    y >= middleBounds.y &&
+    y <= middleBounds.y + middleBounds.h
+  );
 }
 
 function windowResized() {
