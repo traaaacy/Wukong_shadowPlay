@@ -23,17 +23,6 @@ const VIDEO_ZOOM = [
   1, 1,
 ];
 
-const VIDEO_CROP = [
-  null,
-  { sx: 0, sy: 0, sw: 1080, sh: 1080 },
-  { sx: 308, sy: 0, sw: 1080, sh: 1080 },
-  null,
-  null,
-  null,
-  null,
-  { sx: 0, sy: 0, sw: 1080, sh: 1080 },
-];
-
 let inputVideo;
 let hands;
 let camera;
@@ -257,13 +246,13 @@ function drawVideoCell(x, y, w, h, videoIndex) {
   const isActive = videoIndex < activeCount;
 
   if (isActive) {
-    imageContain(clips[videoIndex], x, y, w, h, VIDEO_ZOOM[videoIndex], VIDEO_CROP[videoIndex]);
+    imageContain(clips[videoIndex], x, y, w, h, VIDEO_ZOOM[videoIndex]);
   }
 }
 
 function drawMiddleCell(x, y, w, h) {
   if (middleClip) {
-    imageContain(middleClip, x, y, w, h, 1, null);
+    imageContain(middleClip, x, y, w, h, 1);
   }
 }
 
@@ -277,16 +266,15 @@ function drawStatus() {
   text(`${cameraStatus} | ${handStatus} | ${count} | ${motion}`, 10, 10);
 }
 
-function imageContain(media, x, y, w, h, zoom, crop) {
+function imageContain(media, x, y, w, h, zoom) {
   const mediaW = media.elt.videoWidth || media.width || w;
   const mediaH = media.elt.videoHeight || media.height || h;
-  const source = crop || { sx: 0, sy: 0, sw: mediaW, sh: mediaH };
-  const scale = min(w / source.sw, h / source.sh) * zoom;
-  const drawW = source.sw * scale;
-  const drawH = source.sh * scale;
+  const scale = min(w / mediaW, h / mediaH) * zoom;
+  const drawW = mediaW * scale;
+  const drawH = mediaH * scale;
   const drawX = x + (w - drawW) / 2;
   const drawY = y + (h - drawH) / 2;
-  image(media, drawX, drawY, drawW, drawH, source.sx, source.sy, source.sw, source.sh);
+  image(media, drawX, drawY, drawW, drawH);
 }
 
 function averageX(points) {
