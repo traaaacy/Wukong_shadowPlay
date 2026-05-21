@@ -18,9 +18,9 @@ const GRID_TO_VIDEO = [
 ];
 
 const VIDEO_ZOOM = [
-  1, 1.24, 1.24,
   1, 1, 1,
-  1, 1.24,
+  1, 1, 1,
+  1, 1,
 ];
 
 let inputVideo;
@@ -223,15 +223,15 @@ function updateAutoReset() {
 }
 
 function drawGrid() {
-  const gap = 0;
-  const cellW = width / 3;
+  const gap = width * 0.012;
+  const cellW = (width - gap * 2) / 3;
   const cellH = cellW;
 
   for (let gridIndex = 0; gridIndex < GRID_TO_VIDEO.length; gridIndex += 1) {
     const col = gridIndex % 3;
     const row = floor(gridIndex / 3);
-    const x = gap + col * (cellW + gap);
-    const y = gap + row * (cellH + gap);
+    const x = col * (cellW + gap);
+    const y = row * (cellH + gap);
     const videoIndex = GRID_TO_VIDEO[gridIndex];
 
     if (videoIndex === -1) {
